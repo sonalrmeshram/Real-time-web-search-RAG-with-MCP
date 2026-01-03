@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RAG Web Search Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind CDN for quick nice styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+  <div class="min-h-screen flex flex-col items-center p-4">
+    <div class="w-full max-w-3xl bg-white shadow-md rounded-lg p-4 flex flex-col gap-4">
+      <h1 class="text-2xl font-semibold text-gray-800">RAG Web Search Assistant</h1>
+
+      <div id="messages" class="h-80 overflow-y-auto border rounded-md p-3 bg-gray-50 text-sm space-y-3"></div>
+
+      <form id="queryForm" class="flex gap-2">
+        <input
+          id="queryInput"
+          type="text"
+          placeholder="Ask anything..."
+          class="flex-1 border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        />
+        <button
+          type="submit"
+          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+        >
+          Ask
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("queryForm");
+    const input = document.getElementById("queryInput");
+    const messages = document.getElementById("messages");
+
+    function addMessage(role, text) {
+      const div = document.createElement("div");
+      div.className =
+        role === "user"
+          ? "text-right"
+          : "text-left";
+      div.innerHTML =
+        role === "user"
+          ? `<div class="inline-block bg-blue-500 text-white px-3 py-2 rounded-lg max-w-xl">${text}</div>`
+          : `<div class="inline-block bg-gray-200 text-gray-900 px-3 py-2 rounded-lg max-w-xl whitespace-pre-line">${text}</div>`;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const question = input.value.trim();
+      if (!question) return;
+
+      addMessage("user", question);
+      input.value = "";
+      form.querySelector("button").disabled = true;
+
+      try {
+        const resp = await fetch("/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: question, max_results: 3 }),
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text();
+          addMessage("assistant", "Error: " + text);
+        } else {
+          const data = await resp.json();
+          addMessage("assistant", data.response || "No response.");
+        }
+      } catch (err) {
+        addMessage("assistant", "Network error: " + err);
+      } finally {
+        form.querySelector("button").disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
+
